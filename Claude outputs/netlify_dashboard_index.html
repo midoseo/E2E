@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>마켓센싱 지식계층 · KB 주입 비교</title>
+<!--
+  ┌─────────────────────────────────────────────────────────────┐
+  │  마켓센싱 지식계층 데모 대시보드                                  │
+  │  · 디자인은 개발자 MI 대시보드(index.html) 시스템에 맞춤          │
+  │  · 계층: ②지식(KB) → ③관점 에이전트(A/B) → ④판단 에이전트(종합)   │
+  │  · 고치는 법:                                                   │
+  │     - 색/폰트 → 아래 :root 변수                                 │
+  │     - 기사/분석/판단 → 맨 아래 <script>의 ARTICLES 배열          │
+  │     - 메뉴 이름 → 사이드바 .nav 항목 텍스트                       │
+  │  · 배포: 이 폴더를 netlify.com 에 드래그&드롭 (README 참고)       │
+  └─────────────────────────────────────────────────────────────┘
+-->
+<style>
+  /* ===== 팔레트 (개발자 대시보드와 동일) ===== */
+  :root{
+    --navy:#13233f; --bg:#f4f6fa; --card:#ffffff; --ink:#1e2a3b; --muted:#6e7a8a;
+    --line:#e6ebf2; --blue:#2563eb; --soft:#edf3fe;
+    --green:#0e9f6e; --amber:#c27803; --red:#e02424;
+    --a-bg:#f8fafc; --a-line:#e6ebf2; --b-bg:#edf3fe; --b-line:#cfe0fc;
+    --accentbg:#fff8e6; --accentline:#f0d68a;
+    --shadow:0 1px 3px rgba(19,35,63,.07),0 1px 2px rgba(19,35,63,.04);
+    --realbg:#e7f6ef; --realline:#b6e2cd; --real:#0e9f6e;
+    --vbg:#f5f8ff; --vline:#d5e2fb;
+  }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);
+    font-family:"Malgun Gothic","맑은 고딕",system-ui,-apple-system,sans-serif;line-height:1.6}
+  .app{display:flex;align-items:flex-start;max-width:1400px;margin:0 auto}
+
+  /* ===== 사이드바 ===== */
+  .side{width:236px;flex:none;position:sticky;top:0;height:100vh;background:var(--card);
+    border-right:1px solid var(--line);padding:20px 14px;display:flex;flex-direction:column;gap:4px}
+  .brand{display:flex;align-items:center;gap:10px;padding:6px 8px 16px}
+  .logo{width:34px;height:34px;border-radius:9px;background:var(--navy);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px}
+  .b-t1{font-size:13.5px;font-weight:800;color:var(--navy);line-height:1.2}
+  .b-t2{font-size:9.5px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+  .nav{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+  .nv{display:flex;align-items:center;gap:9px;padding:8.5px 12px;border-radius:10px;
+    font-size:13.5px;color:var(--muted);cursor:default;text-decoration:none}
+  .nv.on{background:var(--soft);color:var(--blue);font-weight:700}
+  .nv .ic{width:16px;text-align:center;opacity:.85}
+  .nv .cnt{margin-left:auto;font-size:11px;background:var(--soft);color:var(--blue);
+    border-radius:10px;min-width:22px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 6px}
+  .side .foot{margin-top:auto;font-size:11px;color:var(--muted);padding:8px}
+
+  /* ===== 메인 ===== */
+  .main{flex:1;min-width:0;max-width:1160px;padding:24px 28px 60px}
+  .h-eyebrow{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.02em}
+  h1{margin:4px 0 6px;font-size:23px;color:var(--navy)}
+  .h-sub{font-size:13.5px;color:var(--muted)}
+  .badge{display:inline-block;font-size:11px;font-weight:700;color:var(--amber);background:var(--accentbg);
+    border:1px solid var(--accentline);border-radius:999px;padding:2px 10px;margin-left:8px;vertical-align:middle}
+
+  /* 파이프라인 표시 */
+  .pipe{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:14px 0 2px;font-size:12px}
+  .pipe .st{padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--muted)}
+  .pipe .st.on{background:var(--navy);color:#fff;border-color:var(--navy);font-weight:700}
+  .pipe .ar{color:var(--muted)}
+
+  .hint{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--blue);
+    border-radius:12px;padding:12px 16px;margin:14px 0;font-size:13px;color:var(--muted);box-shadow:var(--shadow)}
+  .hint b{color:var(--ink)}
+  .rb{font-size:10.5px;font-weight:700;border-radius:5px;padding:2px 8px;white-space:nowrap}
+  .rb.real{color:var(--real);background:var(--realbg);border:1px solid var(--realline)}
+  .rb.ex{color:var(--amber);background:var(--accentbg);border:1px solid var(--accentline)}
+
+  /* 회차 요약 스트립 */
+  .summary{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+  .kpi{flex:1;min-width:120px;background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;box-shadow:var(--shadow)}
+  .kpi .n{font-size:22px;font-weight:800;color:var(--navy)} .kpi .l{font-size:12px;color:var(--muted)}
+  .kpi.hi .n{color:var(--blue)}
+
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 4px}
+  .chip{font:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:6px 14px;border-radius:18px;
+    border:1px solid var(--line);background:var(--card);color:var(--ink)}
+  .chip.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .count{font-size:12px;color:var(--muted);margin-left:auto}
+
+  .section{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    box-shadow:var(--shadow);margin:14px 0}
+  .art{padding:15px 18px;border-bottom:1px solid var(--line)}
+  .art .k{font-size:12px;color:var(--muted);margin-bottom:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .art h2{margin:0 0 5px;font-size:16.5px;line-height:1.4;color:var(--ink)}
+  .art p{margin:0;font-size:13px;color:var(--muted)}
+  .tags{margin-top:9px;display:flex;flex-wrap:wrap;gap:6px}
+  .tag{font-size:11.5px;color:var(--blue);background:var(--soft);border-radius:8px;padding:2px 8px}
+  .src{color:var(--muted)} .src a{color:var(--blue);text-decoration:none} .src a:hover{text-decoration:underline}
+
+  .persp{padding:14px 18px 6px;border-top:1px dashed var(--line)}
+  .persp:first-of-type{border-top:none}
+  .axis{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--navy);margin-bottom:3px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--blue)}
+  .kb{margin:8px 0 12px;background:var(--accentbg);border:1px solid var(--accentline);border-radius:9px;padding:9px 12px;font-size:12.5px}
+  .kb .kid{font-weight:700;color:var(--amber)} .kb .rule{color:var(--ink)}
+  .ab{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-bottom:10px}
+  @media(max-width:720px){.ab{grid-template-columns:1fr}}
+  .col{border-radius:11px;padding:12px 13px;font-size:13px}
+  .col.a{background:var(--a-bg);border:1px solid var(--a-line)}
+  .col.b{background:var(--b-bg);border:1px solid var(--b-line)}
+  .col h3{margin:0 0 8px;font-size:12.5px;display:flex;align-items:center;gap:6px}
+  .col.a h3{color:var(--muted)} .col.b h3{color:var(--blue)}
+  .pill{font-size:10.5px;font-weight:700;border-radius:5px;padding:1px 6px}
+  .col.a .pill{background:#e6ebf2;color:var(--muted)} .col.b .pill{background:var(--blue);color:#fff}
+  .fld{margin:7px 0} .fld .lab{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:1px}
+  .col.b .lab{color:var(--blue)} .col.b .fld.judg .val{font-weight:600}
+  .dec{display:inline-block;font-size:11px;font-weight:700;border-radius:8px;padding:1px 8px;margin-top:2px}
+  .dec.a{background:#e7f6ef;color:var(--green)} .dec.r{background:#fdeaea;color:var(--red)} .dec.h{background:#fff3d9;color:var(--amber)}
+
+  /* ===== ④ 판단 에이전트(종합 판단) ===== */
+  .verdict{margin:6px 18px 16px;background:var(--vbg);border:1px solid var(--vline);border-radius:12px;overflow:hidden}
+  .v-h{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--navy);color:#fff;font-size:12.5px;font-weight:700}
+  .v-h .step{font-size:10.5px;background:rgba(255,255,255,.18);border-radius:5px;padding:1px 7px}
+  .v-body{padding:12px 14px}
+  .v-top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+  .verd{font-size:13px;font-weight:800;border-radius:8px;padding:3px 12px}
+  .verd.a{background:#e7f6ef;color:var(--green)} .verd.r{background:#fdeaea;color:var(--red)} .verd.h{background:#fff3d9;color:var(--amber)}
+  .prio{font-size:11.5px;font-weight:700;border-radius:8px;padding:3px 10px;background:var(--soft);color:var(--blue)}
+  .prio.low{background:#eef1f5;color:var(--muted)}
+  .v-comment{font-size:13px;color:var(--ink);margin:6px 0}
+  .v-report{font-size:12.5px;color:var(--ink);background:var(--card);border:1px dashed var(--vline);border-radius:8px;padding:9px 11px;margin-top:8px}
+  .v-report .lab{font-size:10.5px;font-weight:700;color:var(--blue);display:block;margin-bottom:2px}
+
+  /* ===== ⑤ 학습 루프 · 저마찰 캡처 ===== */
+  .capture{margin-top:10px;padding:10px 12px;background:var(--card);border:1px solid var(--line);border-radius:9px}
+  .capture .clab{font-size:10.5px;font-weight:700;color:var(--muted);display:block;margin-bottom:6px}
+  .cbtns{display:inline-flex;gap:6px;margin-right:8px;vertical-align:middle}
+  .cbtn{font:inherit;font-size:12px;font-weight:700;cursor:pointer;border-radius:7px;padding:4px 11px;border:1px solid var(--line);background:#fff;color:var(--muted)}
+  .cbtn.sel[data-v="채택"]{background:#e7f6ef;color:var(--green);border-color:#b6e2cd}
+  .cbtn.sel[data-v="기각"]{background:#fdeaea;color:var(--red);border-color:#f3c4c4}
+  .cbtn.sel[data-v="보류"]{background:#fff3d9;color:var(--amber);border-color:#f0d68a}
+  .creason{font:inherit;font-size:12.5px;width:100%;margin-top:8px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink)}
+  .csave{font:inherit;font-size:12px;font-weight:700;cursor:pointer;border-radius:7px;padding:5px 14px;border:none;background:var(--blue);color:#fff;margin-top:8px}
+  .csaved{font-size:11.5px;color:var(--green);margin-left:8px}
+
+  .loop{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);margin:18px 0;overflow:hidden}
+  .loop-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px;background:var(--navy);color:#fff;font-size:13px;font-weight:700}
+  .loop-h .step{font-size:10.5px;background:rgba(255,255,255,.18);border-radius:5px;padding:1px 7px}
+  .loop-h .lbtn{font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;border-radius:7px;padding:4px 10px;border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff}
+  .loop-h .lbtn:last-child{margin-left:auto}
+  .loop-b{padding:12px 16px}
+  .kbc{border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin:8px 0;font-size:12.5px}
+  .kbc .kbc-t{font-weight:700;color:var(--navy)} .kbc .kbc-r{color:var(--ink);margin-top:2px} .kbc .kbc-m{color:var(--muted);font-size:11.5px;margin-top:3px}
+  .kbc .vd{font-size:10.5px;font-weight:700;border-radius:6px;padding:1px 7px;margin-right:6px}
+  .kbc .vd.채택{background:#e7f6ef;color:var(--green)} .kbc .vd.기각{background:#fdeaea;color:var(--red)} .kbc .vd.보류{background:#fff3d9;color:var(--amber)}
+  .loop-empty{font-size:12.5px;color:var(--muted);padding:6px 0}
+  .expbox{width:100%;height:120px;margin-top:8px;font:12px Consolas,monospace;border:1px solid var(--line);border-radius:8px;padding:8px;background:#f4f6f9;color:var(--ink);display:none}
+
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:14px}
+  .legend span{display:inline-flex;align-items:center;gap:6px} .sw{width:12px;height:12px;border-radius:3px}
+  .foot{margin-top:22px;font-size:12px;color:var(--muted)}
+  @media(max-width:900px){.app{flex-direction:column}.side{width:100%;height:auto;position:relative;flex-direction:row;
+    flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--line)}.side .foot{display:none}.nav{flex-direction:row;flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="logo">S1</div>
+      <div><div class="b-t1">마켓센싱 인텔리전스</div><div class="b-t2">MARKET SENSING</div></div>
+    </div>
+    <nav class="nav">
+      <span class="nv"><span class="ic">▤</span> 개요</span>
+      <span class="nv on"><span class="ic">◧</span> KB 주입·판단 <span class="cnt" id="navcnt">0</span></span>
+      <span class="nv"><span class="ic">◇</span> 소스 KB</span>
+      <span class="nv"><span class="ic">▦</span> 월간 리포트</span>
+      <span class="nv"><span class="ic">⚙</span> 설정</span>
+    </nav>
+    <div class="foot">지식 계층 개념 데모<br>시큐리티마케팅파트 지나</div>
+  </aside>
+
+  <main class="main">
+    <div class="h-eyebrow">지식 계층 · 암묵지(KB) 적용</div>
+    <h1>KB 주입 → 관점 해석 → 종합 판단<span class="badge">개념 데모</span></h1>
+    <div class="h-sub">2026-09 1회차 (리허설) · 이번 주 실제 기사 · 베테랑 근거(KB)로 읽고 종합 판단</div>
+
+    <div class="pipe">
+      <span class="st">① 수집</span><span class="ar">→</span>
+      <span class="st on">② 지식(KB)</span><span class="ar">→</span>
+      <span class="st on">③ 관점 에이전트</span><span class="ar">→</span>
+      <span class="st on">④ 판단 에이전트</span><span class="ar">→</span>
+      <span class="st">⑤ 월간 리포트</span>
+    </div>
+
+    <div class="hint">
+      <b>이 화면이 보여주는 것.</b> 기사마다 관점 에이전트가 <b>(A) KB 없이</b>/<b>(B) KB 주입</b>으로 해석하고,
+      그 아래 <b>④ 판단 에이전트</b>가 관점들을 모아 <b>최종 게재/기각·우선순위·리포트 문장</b>을 냅니다.
+      <span class="rb real" style="margin:0 2px">실제</span> 는 실제 보도, <span class="rb ex" style="margin:0 2px">예시</span> 는 형식 설명용 가상 기사.
+      <br><span style="font-size:12px">※ 해석·판단은 시드 KB(현업 9건)를 근거로 작성한 <b>예시</b>이며 실제 LLM 출력이 아닙니다. 기사 상세·날짜는 출처 링크에서 확인하세요.</span>
+    </div>
+
+    <div class="summary" id="summary"></div>
+
+    <div class="toolbar" id="filters">
+      <button class="chip on" data-ax="전체">전체</button>
+      <button class="chip" data-ax="사업기획">사업기획</button>
+      <button class="chip" data-ax="상품기획">상품기획</button>
+      <button class="chip" data-ax="마케팅">마케팅</button>
+      <span class="count" id="count"></span>
+    </div>
+
+    <div id="cards"></div>
+
+    <!-- ===== ⑤ 학습 루프 · 축적된 판단 ===== -->
+    <div class="loop">
+      <div class="loop-h">⑤ 학습 루프 · 축적된 판단(KB 후보) <span class="step">채택/기각이 다시 KB로</span>
+        <button class="lbtn" id="btnExport">JSON 보기/내보내기</button>
+        <button class="lbtn" id="btnClear">초기화</button>
+      </div>
+      <div class="loop-b">
+        <div id="loopList"><div class="loop-empty">아직 기록된 판단이 없습니다. 각 기사의 '내 판단 기록'에서 채택/기각과 근거를 남기면 여기에 쌓입니다.</div></div>
+        <textarea class="expbox" id="expBox" readonly></textarea>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><span class="sw" style="background:var(--a-line)"></span> A · KB 없이</span>
+      <span><span class="sw" style="background:var(--blue)"></span> B · KB 주입</span>
+      <span><span class="sw" style="background:var(--accentline)"></span> KB 근거 규칙</span>
+      <span><span class="sw" style="background:var(--navy)"></span> ④ 판단 에이전트 종합</span>
+    </div>
+    <div class="foot">마켓센싱 지식계층 · 개념 데모 · 디자인은 MI 대시보드 시스템 기준</div>
+  </main>
+</div>
+
+<script>
+/* ==========================================================================
+   ARTICLES — 기사 · 관점별 A/B(③) · 종합 판단(④).  여기만 수정하면 화면이 바뀜.
+   verdict = ④ 판단 에이전트 결과: final(판정)/vc(색:a초록 r빨강 h노랑)/prio(우선순위)/
+             comment(종합 코멘트)/report(리포트 반영 문장, 미게재면 "")
+   ========================================================================== */
+const ARTICLES = [
+  {
+    real:true, source:"헤럴드경제", url:"https://biz.heraldcorp.com/article/10742473",
+    title:"마포구, 1인 가구·스토킹 피해자에 주거 안심장비 지원",
+    summary:"마포구가 1인 가구와 스토킹 피해자에게 현관문 안전장치·스마트 초인종 등 주거 안심장비를 지원한다고 밝힘.",
+    keywords:["1인가구","스토킹","안심장비","지자체"],
+    persp:[
+      { axis:"마케팅", kbid:null, kbsrc:"—",
+        rule:"관련 시드 KB 없음 — '1인가구·여성 안심 재포지셔닝' KB 신설 필요(월요일 보강)",
+        a:{ judgment:"1인가구 안심 수요 사례. 홈보안 마케팅 소재로 활용 가능.", dec:"채택", decc:"a",
+            rationale:"지자체 안심장비 지원이 확대되고 있다.", boundary:"공공 사업이라 규모 제한적." },
+        b:{ judgment:"지자체가 1인가구 안심을 제도화 — '혼자여도 안심' 재포지셔닝 근거로 활용, 1인가구·여성 타깃.", dec:"채택", decc:"a",
+            rationale:"구매 동인이 재산 보호→신체·정서 안전으로 확장(일반 판단). ※관련 시드 KB가 없어 우리 조직 고유 규칙은 미반영 — 이 건이 새 KB 후보.",
+            boundary:"공포·과장 톤 지양, '안심·일상' 프레임 유지." } },
+      { axis:"사업기획", kbid:"KB-260904-009", kbsrc:"남현옥(약한 매칭)",
+        rule:"규제=강제 수요 (주의: KB-009는 산업안전 맥락 — 이 건엔 '공공발 안전 수요' 공통점만 부분 적용)",
+        a:{ judgment:"공공 복지 사업, 당사 직접 관련성 낮음.", dec:"보류", decc:"h",
+            rationale:"지자체 예산 기반 지원 사업.", boundary:"—" },
+        b:{ judgment:"지자체 복지연계 안심케어 B2G 채널 기회 — 안심장비+관제·출동 조달 패키지 검토.", dec:"신사업 검토", decc:"a",
+            rationale:"공공이 초기 수요를 만드는 영역 + 당사 출동 인프라 인접. ※주입 KB-009는 산업안전 규제라 직접성은 약함('공공발 안전 수요'만 차용). B2G 전용 KB 신설 필요.",
+            boundary:"조달 단가·유지관리 책임 범위 설계가 관건." } }
+    ]
+  },
+  {
+    real:true, source:"디일렉/국민일보", url:"https://www.thelec.kr/news/articleView.html?idxno=54312",
+    title:"절도 표적 된 무인매장…에스원, AI 보안 계약 33% 급증",
+    summary:"무인매장 절도·기물파손 증가로 AI 영상분석 보안 수요가 늘며, 에스원의 관련 보안 계약이 전년 대비 33% 증가했다는 보도.",
+    keywords:["무인매장","AI보안","절도","에스원"],
+    persp:[
+      { axis:"사업기획", kbid:"KB-260904-002", kbsrc:"고다원",
+        rule:"공급 뉴스 개수 ≠ 시장 크기 — 외생 요인이 만든 실제 '수요 사건'만",
+        a:{ judgment:"AI 보안 시장이 커지는 신호, 사업 기회.", dec:"게재", decc:"a",
+            rationale:"AI 보안 도입 33% 급증.", boundary:"단일 지표." },
+        b:{ judgment:"에스원 자사 계약 33% 증가 = 점주가 실제 돈을 낸 '수요 사건' — 공급 서사가 아니라 실수요 확인. 무인매장 신규 세그먼트 유효.", dec:"게재", decc:"a",
+            rationale:"KB-002 적용: 방아쇠가 절도(외생)이고 '자사 계약 증가'라 '사람이 돈 낸' 요건 충족 → 부풀린 공급 뉴스와 명확히 구분.",
+            boundary:"이 수치가 프로모션·일시 계약이면 하향 → 갱신율·객단가 확인 필요." } },
+      { axis:"마케팅", kbid:null, kbsrc:"—",
+        rule:"관련 시드 KB 없음 — 무인매장 점주 세그먼트 KB 후보",
+        a:{ judgment:"무인점포 점주 대상 소구 강화 가능.", dec:"채택", decc:"a",
+            rationale:"점주 보안 수요 증가.", boundary:"—" },
+        b:{ judgment:"무인매장 점주 겨냥 캠페인 기회 — '절도 손실회피' 소구 + 사후피해 보상 강조.", dec:"채택", decc:"a",
+            rationale:"일반 판단(관련 시드 KB 없음). 손실회피는 창업·소상공인 구매 동인.",
+            boundary:"시장 파이 확대 ≠ 당사 점유 확대, 전환·해지율 병행 관리." } }
+    ]
+  },
+  {
+    real:true, source:"보안뉴스", url:"https://m.boannews.com/html/detail.html?idx=142976",
+    title:"[ISC West 2026] '보는 보안' 너머 '판단하는 보안'으로 — AI가 바꾼 물리보안",
+    summary:"글로벌 보안 전시 ISC West 2026에서 물리보안 흐름이 CCTV로 '보는' 단계에서 AI가 이상행동을 '판단·대응'하는 단계로 이동했다는 결산 보도.",
+    keywords:["ISC West","물리보안","판단하는보안","AI"],
+    persp:[
+      { axis:"상품기획", kbid:null, kbsrc:"—",
+        rule:"관련 시드 KB 없음 — 상품기획 로드맵 KB 부재(신설 필요)",
+        a:{ judgment:"AI 물리보안 트렌드, 상품 기획 참고.", dec:"채택", decc:"a",
+            rationale:"'판단하는 보안'이 부상.", boundary:"전시 트렌드가 국내 수요로 이어질지 미확인." },
+        b:{ judgment:"'보는 보안→판단하는 보안' 전환은 당사 관제·상품 로드맵의 방향성 — AI 1차 판별·자동 대응의 우선순위 상향 검토.", dec:"채택", decc:"a",
+            rationale:"일반 판단(관련 시드 KB 없음). 상품기획 시드가 없어 우리 조직 고유 기준은 미반영 — 이 건이 상품 로드맵 KB 후보.",
+            boundary:"국내 규제·오탐률·현장 수용도 검증 필요." } }
+    ]
+  }
+];
+
+/* ===== 렌더링 ===== */
+function fld(lab,val){ return `<div class="fld ${lab==='판단'?'judg':''}"><span class="lab">${lab}</span><span class="val">${val}</span></div>`; }
+function dec(d,c){ return d?`<span class="dec ${c||'h'}">${d}</span>`:''; }
+function perspHTML(p){
+  const kbchip = p.kbid ? `주입 근거 ${p.kbid} · ${p.kbsrc}` : `관련 시드 KB 없음`;
+  const kbcls = p.kbid ? 'kb' : 'kb none';
+  return `<div class="persp" data-ax="${p.axis}">
+    <div class="axis"><span class="dot"></span>${p.axis} 관점</div>
+    <div class="${kbcls}"><span class="kid">${kbchip}</span> — <span class="rule">${p.rule}</span></div>
+    <div class="ab">
+      <div class="col a"><h3><span class="pill">A</span> KB 없이 · 현행</h3>
+        ${fld('판단',p.a.judgment)}${dec(p.a.dec,p.a.decc)}${fld('근거',p.a.rationale)}${fld('경계조건',p.a.boundary)}</div>
+      <div class="col b"><h3><span class="pill">B</span> KB 주입 · 제안</h3>
+        ${fld('판단',p.b.judgment)}${dec(p.b.dec,p.b.decc)}${fld('근거',p.b.rationale)}${fld('경계조건',p.b.boundary)}</div>
+    </div></div>`;
+}
+function keyOf(d){ return 'a_'+encodeURIComponent(d.title).replace(/%/g,'').slice(0,40); }
+function captureHTML(d){
+  const k=keyOf(d); const saved=getDec(k);
+  const sel=v=>saved&&saved.verdict===v?'sel':'';
+  return `<div class="capture" data-key="${k}" data-title="${d.title.replace(/"/g,'&quot;')}">
+    <span class="clab">내 판단 기록 (④ 판단 에이전트 제안을 사람이 확정 → ⑤ KB로 축적)</span>
+    <span class="cbtns">
+      <button class="cbtn ${sel('채택')}" data-v="채택">채택</button>
+      <button class="cbtn ${sel('기각')}" data-v="기각">기각</button>
+      <button class="cbtn ${sel('보류')}" data-v="보류">보류</button>
+    </span>
+    <input class="creason" placeholder="근거 한 줄 — 왜 그렇게 판단했나 (이게 KB가 됩니다)" value="${saved?saved.reason.replace(/"/g,'&quot;'):''}">
+    <div><button class="csave">저장</button><span class="csaved" ${saved?'':'hidden'}>✓ 저장됨</span></div>
+  </div>`;
+}
+/* ===== ④ 판단 에이전트 · 종합 규칙 엔진 =====
+   관점별 결정(b.dec)을 카테고리로 정규화 → 규칙으로 최종 판정·우선순위·충돌처리 계산.
+   (판정을 손으로 쓰지 않고 규칙이 산출) */
+function catOf(dec){
+  if(!dec) return 'hold';
+  if(dec.includes('미게재')||dec.includes('기각')) return 'noise';
+  if(dec.includes('조건부')) return 'conditional';
+  if(dec.includes('보류')) return 'hold';
+  return 'support';           // 게재/채택/신사업 검토
+}
+function confOf(p){           // 관점 확신도(간이 추론): 신사업·노이즈는 높음, 그 외 중간
+  const d=p.b.dec||'';
+  if(d.includes('신사업')) return '높음';
+  if(catOf(d)==='noise') return '높음';
+  return '중간';
+}
+function synthesize(persp){
+  const items=persp.map(p=>({axis:p.axis,cat:catOf(p.b.dec),conf:confOf(p),judg:p.b.judgment,bound:p.b.boundary}));
+  const support=items.filter(i=>i.cat==='support');
+  const cond=items.filter(i=>i.cat==='conditional');
+  const noise=items.filter(i=>i.cat==='noise');
+  const conflict=support.length>0 && noise.length>0;   // 지지 vs 노이즈 상충
+  let final,vc;
+  if(support.length){ final='게재'; vc='a'; }
+  else if(cond.length){ final='조건부 게재'; vc='h'; }
+  else if(noise.length){ final='미게재'; vc='r'; }
+  else { final='보류'; vc='h'; }
+  let prio;
+  if(final==='미게재'||final==='보류') prio='우선순위 낮음';
+  else if(support.length>=2) prio='우선순위 높음';
+  else if(support.some(i=>i.conf==='높음')) prio='우선순위 높음';
+  else prio='우선순위 중';
+  const winners=support.length?support:(cond.length?cond:(noise.length?noise:items));
+  const top=winners.slice().sort((a,b)=>(b.conf==='높음')-(a.conf==='높음'))[0];
+  let comment,trace;
+  if(conflict){
+    comment=`관점 충돌 — ${support.map(i=>i.axis).join('·')}은 게재(기회/위협), ${noise.map(i=>i.axis).join('·')}은 노이즈로 판단. 놓침 비용을 고려해 게재하되 반대 관점을 이견으로 병기.`;
+    trace=`지지 ${support.length} vs 노이즈 ${noise.length} → 충돌 → 기회 관점 우선(놓침 비용)+이견 병기`;
+  } else if(support.length>=2){
+    comment=`${support.map(i=>i.axis).join('·')} 관점이 같은 방향으로 수렴 — 확신도 상향.`;
+    trace=`지지 관점 ${support.length}개 수렴 → 게재·우선순위 높음`;
+  } else if(final==='조건부 게재'){
+    comment=`현재는 노이즈이나 경계조건 충족 시 게재로 전환: ${(top&&top.bound)||''}`;
+    trace=`조건부 관점만 존재 → 조건부 게재`;
+  } else if(final==='미게재'){
+    comment=`모든 관점이 노이즈로 판단 → 리포트 제외.`;
+    trace=`지지 0 · 노이즈 ${noise.length} → 미게재(노이즈 필터)`;
+  } else {
+    comment=`${top?top.axis:''} 단일 관점 유효.`;
+    trace=`단일 지지 관점(확신도 ${top?top.conf:'중간'}) → 게재`;
+  }
+  let report='';
+  if(final!=='미게재'){ report=top?top.judg:''; if(conflict&&noise.length) report+=` (이견: ${noise[0].axis} — 노이즈 판단)`; }
+  return {final,vc,prio,comment,trace,report,conflict};
+}
+function verdictHTML(v,d){
+  const prioCls = v.prio.includes('낮음') ? 'prio low' : 'prio';
+  const cflag = v.conflict ? `<span class="prio" style="background:#fdeaea;color:var(--red)">관점 충돌</span>` : '';
+  const report = v.report ? `<div class="v-report"><span class="lab">월간 리포트 반영 문장</span>${v.report}</div>`
+                          : `<div class="v-report" style="color:var(--muted)"><span class="lab">월간 리포트 반영</span>제외 (미게재)</div>`;
+  return `<div class="verdict">
+    <div class="v-h">④ 판단 에이전트 · 종합 판단 <span class="step">관점 통합 → 규칙 판정</span></div>
+    <div class="v-body">
+      <div class="v-top"><span class="verd ${v.vc}">${v.final}</span><span class="${prioCls}">${v.prio}</span>${cflag}</div>
+      <div class="v-comment">${v.comment}</div>
+      <div style="font-size:11px;color:var(--muted);margin:2px 0 4px">⚙ 규칙 적용: ${v.trace}</div>
+      ${report}
+      ${captureHTML(d)}
+    </div></div>`;
+}
+function render(filter){
+  const host=document.getElementById('cards'); host.innerHTML='';
+  let panels=0;
+  const shown=ARTICLES.filter(d=>filter==='전체'||d.persp.some(p=>p.axis===filter));
+  shown.forEach(d=>{
+    const persp=d.persp.filter(p=>filter==='전체'||p.axis===filter); panels+=persp.length;
+    const badge=d.real?`<span class="rb real">실제</span>`:`<span class="rb ex">예시</span>`;
+    const src=d.real&&d.url?`<span class="src">· 출처 <a href="${d.url}" target="_blank" rel="noopener">${d.source}</a></span>`:'';
+    const el=document.createElement('div'); el.className='section';
+    el.innerHTML=`<div class="art"><div class="k">${badge} 기사 ${src}</div>
+      <h2>${d.title}</h2><p>${d.summary}</p>
+      <div class="tags">${d.keywords.map(k=>`<span class="tag">#${k}</span>`).join('')}</div></div>
+      ${persp.map(perspHTML).join('')}
+      ${verdictHTML(synthesize(d.persp), d)}`;
+    host.appendChild(el);
+  });
+  document.getElementById('count').textContent=`기사 ${shown.length}건 · 관점 비교 ${panels}개`;
+  document.getElementById('navcnt').textContent=ARTICLES.length;
+}
+function buildSummary(){
+  let pub=0,cond=0,rej=0,hi=0;
+  ARTICLES.forEach(d=>{ const v=synthesize(d.persp);
+    if(v.final.includes('미게재')) rej++; else if(v.final.includes('조건부')) cond++; else pub++;
+    if(v.prio.includes('높음')) hi++; });
+  document.getElementById('summary').innerHTML=`
+    <div class="kpi"><div class="n">${ARTICLES.length}</div><div class="l">이번 회차 기사</div></div>
+    <div class="kpi"><div class="n">${pub}</div><div class="l">게재</div></div>
+    <div class="kpi"><div class="n">${cond}</div><div class="l">조건부 게재</div></div>
+    <div class="kpi"><div class="n">${rej}</div><div class="l">미게재(기각)</div></div>
+    <div class="kpi hi"><div class="n">${hi}</div><div class="l">우선순위 높음</div></div>`;
+}
+/* ===== ⑤ 학습 루프 · localStorage (배포 사이트/Artifact에서 브라우저에 저장됨) ===== */
+const LS_KEY='ms_kb_decisions';
+function allDec(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||'{}'); }catch(e){ return {}; } }
+function getDec(k){ return allDec()[k]; }
+function setDec(k,obj){ try{ const a=allDec(); a[k]=obj; localStorage.setItem(LS_KEY,JSON.stringify(a)); }catch(e){} }
+function renderLoop(){
+  const a=allDec(); const keys=Object.keys(a);
+  const host=document.getElementById('loopList');
+  if(!keys.length){ host.innerHTML='<div class="loop-empty">아직 기록된 판단이 없습니다. 각 기사의 \'내 판단 기록\'에서 채택/기각과 근거를 남기면 여기에 쌓입니다.</div>'; return; }
+  host.innerHTML=keys.map(k=>{const d=a[k];
+    return `<div class="kbc"><div class="kbc-t"><span class="vd ${d.verdict}">${d.verdict}</span>${d.title}</div>
+      <div class="kbc-r">${d.reason||'<span style="color:var(--muted)">(근거 미입력)</span>'}</div>
+      <div class="kbc-m">기록 ${new Date(d.ts).toLocaleString('ko-KR')} · origin=live</div></div>`;
+  }).join('');
+}
+/* 캡처 UI 이벤트 (위임) */
+document.getElementById('cards').addEventListener('click',e=>{
+  const cap=e.target.closest('.capture'); if(!cap) return;
+  const vb=e.target.closest('.cbtn');
+  if(vb){ cap.querySelectorAll('.cbtn').forEach(x=>x.classList.remove('sel')); vb.classList.add('sel'); return; }
+  if(e.target.closest('.csave')){
+    const sel=cap.querySelector('.cbtn.sel');
+    const verdict=sel?sel.dataset.v:'보류';
+    const reason=cap.querySelector('.creason').value.trim();
+    setDec(cap.dataset.key,{title:cap.dataset.title,verdict,reason,ts:Date.now()});
+    const s=cap.querySelector('.csaved'); s.hidden=false;
+    renderLoop();
+  }
+});
+document.getElementById('btnExport').addEventListener('click',()=>{
+  const box=document.getElementById('expBox');
+  const data={exported_at:new Date().toISOString(),decisions:allDec()};
+  const json=JSON.stringify(data,null,2);
+  box.value=json; box.style.display='block'; box.select();
+  // 배포 사이트(Netlify)에서는 파일 다운로드도 시도(미리보기 환경에선 무시될 수 있음)
+  try{ const blob=new Blob([json],{type:'application/json'});
+    const url=URL.createObjectURL(blob); const a=document.createElement('a');
+    a.href=url; a.download='kb_live_decisions.json'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }catch(e){}
+});
+document.getElementById('btnClear').addEventListener('click',()=>{
+  if(confirm('축적된 판단을 모두 지울까요?')){ try{localStorage.removeItem(LS_KEY);}catch(e){} renderLoop(); render(document.querySelector('#filters .chip.on').dataset.ax); }
+});
+
+buildSummary(); render('전체'); renderLoop();
+document.getElementById('filters').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#filters .chip').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); render(b.dataset.ax);
+});
+</script>
+</body>
+</html>
