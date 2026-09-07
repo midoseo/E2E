@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1. 기사 입력 도우미</title>
+<!--
+  마켓센싱 시스템 · STEP 1 기사 입력 도우미
+  · 크롤러 없이: 모은 기사를 폼에 넣으면 → 분석용 JSON(articles)로 만들어 줌
+  · 이 JSON을 STEP 2(분석)에 그대로 넣으면 됩니다.
+  · 고치는 법: 아래 :root 색, 관점 목록(const AXES), 필드 정도만 손대면 됨.
+  · 저장: 입력 중인 목록은 이 브라우저에 자동 저장(localStorage).
+-->
+<style>
+  :root{ --navy:#13233f; --bg:#f4f6fa; --card:#fff; --ink:#1e2a3b; --muted:#6e7a8a;
+    --line:#e6ebf2; --blue:#2563eb; --soft:#edf3fe; --green:#0e9f6e; --red:#e02424;
+    --shadow:0 1px 3px rgba(19,35,63,.07),0 1px 2px rgba(19,35,63,.04); }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);font-family:"Malgun Gothic","맑은 고딕",system-ui,sans-serif;line-height:1.6}
+  .wrap{max-width:900px;margin:0 auto;padding:26px 20px 60px}
+  .eyebrow{font-size:12px;font-weight:700;color:var(--muted)}
+  h1{margin:4px 0 4px;font-size:23px;color:var(--navy)}
+  .sub{font-size:13.5px;color:var(--muted);margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px 18px;margin:14px 0}
+  .card h2{margin:0 0 12px;font-size:15px;color:var(--navy)}
+  label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:10px 0 3px}
+  input[type=text],textarea{width:100%;font:inherit;font-size:13.5px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+  textarea{height:60px;resize:vertical}
+  .axes{display:flex;gap:14px;flex-wrap:wrap;margin-top:4px}
+  .axes label{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--ink);font-size:13px;margin:0}
+  .row-btns{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+  button{font:inherit;font-size:13px;font-weight:700;cursor:pointer;border-radius:8px;padding:8px 16px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+  button.primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+  button.ghost{color:var(--muted)}
+  .item{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;display:flex;gap:10px;align-items:flex-start}
+  .item .n{font-weight:800;color:var(--blue);flex:none}
+  .item .body{flex:1;min-width:0}
+  .item .t{font-weight:700}
+  .item .m{color:var(--muted);font-size:12px}
+  .item .axs{margin-top:3px}
+  .chip{display:inline-block;font-size:11px;color:var(--blue);background:var(--soft);border-radius:6px;padding:1px 7px;margin-right:4px}
+  .del{color:var(--red);border-color:#f3c4c4;background:#fff;padding:4px 10px;font-size:12px}
+  .empty{color:var(--muted);font-size:13px;padding:6px 0}
+  .out{width:100%;height:180px;font:12px Consolas,monospace;border:1px solid var(--line);border-radius:10px;padding:10px;background:#f4f6f9;color:var(--ink)}
+  .count{font-size:12px;color:var(--muted)}
+  .ok{color:var(--green);font-size:12px;font-weight:700;margin-left:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">마켓센싱 시스템 · STEP 1</div>
+  <h1>기사 입력 도우미</h1>
+  <div class="sub">모은 기사를 아래에 넣으면 → 분석(STEP 2)에 바로 쓸 JSON을 만들어 줍니다. 크롤러 필요 없음.</div>
+
+  <!-- 입력 폼 -->
+  <div class="card">
+    <h2>➊ 기사 추가</h2>
+    <label>제목</label>
+    <input type="text" id="f-title" placeholder="예) 마포구, 1인가구·스토킹 피해자에 주거 안심장비 지원">
+    <label>요약 (한두 줄)</label>
+    <textarea id="f-sum" placeholder="예) 마포구가 1인가구·스토킹 피해자에게 현관 안전장치 등 주거 안심장비를 지원."></textarea>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px"><label>출처</label><input type="text" id="f-src" placeholder="예) 헤럴드경제"></div>
+      <div style="flex:2;min-width:220px"><label>링크(URL)</label><input type="text" id="f-url" placeholder="https://..."></div>
+    </div>
+    <label>관점 (해당되는 것 체크 · 비우면 3개 전체)</label>
+    <div class="axes" id="f-axes"></div>
+    <div class="row-btns">
+      <button class="primary" id="btn-add">＋ 목록에 추가</button>
+      <button class="ghost" id="btn-clearform">폼 비우기</button>
+    </div>
+  </div>
+
+  <!-- 목록 -->
+  <div class="card">
+    <h2>➋ 이번 회차 기사 목록 <span class="count" id="cnt"></span></h2>
+    <div id="list"></div>
+  </div>
+
+  <!-- 출력 -->
+  <div class="card">
+    <h2>➌ 분석용 JSON <span class="ok" id="copied" hidden>✓ 복사됨</span></h2>
+    <div class="row-btns" style="margin-top:0;margin-bottom:8px">
+      <button class="primary" id="btn-copy">📋 JSON 복사</button>
+      <button id="btn-clearall" class="ghost">전체 비우기</button>
+    </div>
+    <textarea class="out" id="out" readonly></textarea>
+    <div class="sub" style="margin:8px 0 0">이 JSON을 복사해서 STEP 2(분석)에 붙여넣으면 됩니다.</div>
+  </div>
+</div>
+
+<script>
+const AXES=["사업기획","상품기획","마케팅"];
+const LS="ms_step1_articles";
+let items=load();
+
+function load(){ try{return JSON.parse(localStorage.getItem(LS)||"[]");}catch(e){return [];} }
+function save(){ try{localStorage.setItem(LS,JSON.stringify(items));}catch(e){} }
+
+// 관점 체크박스 생성
+document.getElementById('f-axes').innerHTML=AXES.map(a=>
+  `<label><input type="checkbox" value="${a}"> ${a}</label>`).join('');
+
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function render(){
+  const list=document.getElementById('list');
+  if(!items.length){ list.innerHTML='<div class="empty">아직 없음 — 위에서 기사를 추가하세요.</div>'; }
+  else list.innerHTML=items.map((it,i)=>`
+    <div class="item">
+      <div class="n">${i+1}</div>
+      <div class="body">
+        <div class="t">${esc(it.title)}</div>
+        <div class="m">${esc(it.summary)}</div>
+        <div class="m">${esc(it.source||'')} ${it.url?'· '+esc(it.url):''}</div>
+        <div class="axs">${(it.run_axes||[]).map(a=>`<span class="chip">${a}</span>`).join('')}</div>
+      </div>
+      <button class="del" data-i="${i}">삭제</button>
+    </div>`).join('');
+  document.getElementById('cnt').textContent=`(${items.length}건)`;
+  document.getElementById('out').value=JSON.stringify(items,null,2);
+}
+
+document.getElementById('btn-add').addEventListener('click',()=>{
+  const title=document.getElementById('f-title').value.trim();
+  const summary=document.getElementById('f-sum').value.trim();
+  if(!title){ alert('제목은 입력해 주세요.'); return; }
+  const source=document.getElementById('f-src').value.trim();
+  const url=document.getElementById('f-url').value.trim();
+  let axes=[...document.querySelectorAll('#f-axes input:checked')].map(x=>x.value);
+  if(!axes.length) axes=[...AXES]; // 비우면 전체
+  items.push({title,summary,source,url,run_axes:axes});
+  save(); render();
+  document.getElementById('btn-clearform').click();
+  document.getElementById('f-title').focus();
+});
+document.getElementById('btn-clearform').addEventListener('click',()=>{
+  ['f-title','f-sum','f-src','f-url'].forEach(id=>document.getElementById(id).value='');
+  document.querySelectorAll('#f-axes input').forEach(x=>x.checked=false);
+});
+document.getElementById('list').addEventListener('click',e=>{
+  const b=e.target.closest('.del'); if(!b)return;
+  items.splice(+b.dataset.i,1); save(); render();
+});
+document.getElementById('btn-copy').addEventListener('click',async()=>{
+  const out=document.getElementById('out'); out.select();
+  try{ await navigator.clipboard.writeText(out.value); }catch(e){ document.execCommand('copy'); }
+  const ok=document.getElementById('copied'); ok.hidden=false; setTimeout(()=>ok.hidden=true,1500);
+});
+document.getElementById('btn-clearall').addEventListener('click',()=>{
+  if(confirm('목록을 전부 지울까요?')){ items=[]; save(); render(); }
+});
+render();
+</script>
+</body>
+</html>

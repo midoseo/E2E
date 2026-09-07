@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>마켓센싱 인텔리전스</title>
+<!--
+  마켓센싱 대시보드 (2모드)
+  · 📊 리포트·월간: 전체 집계 + 거시 자료 직접 입력 + 기사 큐레이션(채택/기각)
+  · 📰 팀원·일간: 상단에서 내 그룹 선택 → 그 그룹 기사·해석만
+  · 고치는 법: :root 색 / 맨 아래 ARTICLES 배열(기사·분석) / AXES(그룹)
+  · 배포: 이 파일이 든 폴더를 netlify.com/drop 에 드래그
+-->
+<style>
+  :root{ --navy:#13233f; --bg:#f4f6fa; --card:#fff; --ink:#1e2a3b; --muted:#6e7a8a;
+    --line:#e6ebf2; --blue:#2563eb; --soft:#edf3fe; --green:#0e9f6e; --amber:#c27803; --red:#e02424;
+    --a-bg:#f8fafc; --a-line:#e6ebf2; --b-bg:#edf3fe; --b-line:#cfe0fc;
+    --accentbg:#fff8e6; --accentline:#f0d68a; --vbg:#f5f8ff; --vline:#d5e2fb;
+    --shadow:0 1px 3px rgba(19,35,63,.07),0 1px 2px rgba(19,35,63,.04);
+    --realbg:#e7f6ef; --realline:#b6e2cd; --real:#0e9f6e; }
+  *{box-sizing:border-box} html,body{margin:0} [hidden]{display:none!important}
+  body{background:var(--bg);color:var(--ink);font-family:"Malgun Gothic","맑은 고딕",system-ui,sans-serif;line-height:1.6}
+  .app{display:flex;align-items:flex-start;max-width:1400px;margin:0 auto}
+  .side{width:224px;flex:none;position:sticky;top:0;height:100vh;background:var(--card);border-right:1px solid var(--line);padding:20px 14px;display:flex;flex-direction:column;gap:4px}
+  .brand{display:flex;align-items:center;gap:10px;padding:6px 8px 16px}
+  .logo{width:34px;height:34px;border-radius:9px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px}
+  .b-t1{font-size:13.5px;font-weight:800;color:var(--navy);line-height:1.2}
+  .b-t2{font-size:9.5px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+  .modenav{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+  .mbtn{display:flex;align-items:center;gap:9px;padding:11px 12px;border-radius:10px;font:inherit;font-size:13.5px;font-weight:700;text-align:left;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--muted)}
+  .mbtn .em{font-size:16px}
+  .mbtn.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .mbtn small{display:block;font-size:10.5px;font-weight:600;opacity:.8}
+  .side .foot{margin-top:auto;font-size:11px;color:var(--muted);padding:8px}
+
+  .main{flex:1;min-width:0;max-width:1160px;padding:22px 26px 60px}
+  .h-eyebrow{font-size:12px;font-weight:700;color:var(--muted)}
+  h1{margin:3px 0 4px;font-size:22px;color:var(--navy)}
+  .h-sub{font-size:13px;color:var(--muted)}
+
+  .groupbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0 6px}
+  .glab{font-size:12px;font-weight:700;color:var(--muted);margin-right:2px}
+  .chip{font:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:6px 14px;border-radius:18px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+  .chip.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .count{font-size:12px;color:var(--muted);margin-left:auto}
+
+  .summary{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+  .kpi{flex:1;min-width:110px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow)}
+  .kpi .n{font-size:22px;font-weight:800;color:var(--navy)} .kpi .l{font-size:12px;color:var(--muted)}
+  .kpi.hi .n{color:var(--blue)}
+
+  .section{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);margin:13px 0}
+  .art{padding:14px 18px;border-bottom:1px solid var(--line)}
+  .art .k{font-size:12px;color:var(--muted);margin-bottom:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .rb{font-size:10.5px;font-weight:700;border-radius:5px;padding:2px 8px}
+  .rb.real{color:var(--real);background:var(--realbg);border:1px solid var(--realline)}
+  .rb.ex{color:var(--amber);background:var(--accentbg);border:1px solid var(--accentline)}
+  .art h2{margin:0 0 5px;font-size:16px;line-height:1.4;color:var(--ink)}
+  .art p{margin:0;font-size:13px;color:var(--muted)}
+  .tags{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
+  .tag{font-size:11.5px;color:var(--blue);background:var(--soft);border-radius:8px;padding:2px 8px}
+  .src{color:var(--muted)} .src a{color:var(--blue);text-decoration:none} .src a:hover{text-decoration:underline}
+
+  .persp{padding:13px 18px 4px;border-top:1px dashed var(--line)}
+  .persp:first-of-type{border-top:none}
+  .axis{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--navy);margin-bottom:3px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--blue)}
+  .kb{margin:7px 0 10px;background:var(--accentbg);border:1px solid var(--accentline);border-radius:9px;padding:8px 11px;font-size:12px}
+  .kb.none{background:transparent;border:1px dashed var(--line);color:var(--muted)}
+  .kb .kid{font-weight:700;color:var(--amber)} .kb.none .kid{color:var(--muted)} .kb .rule{color:var(--ink)}
+  .ab{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-bottom:9px}
+  @media(max-width:720px){.ab{grid-template-columns:1fr}}
+  .col{border-radius:11px;padding:11px 13px;font-size:13px}
+  .col.a{background:var(--a-bg);border:1px solid var(--a-line)}
+  .col.b{background:var(--b-bg);border:1px solid var(--b-line)}
+  .col h3{margin:0 0 7px;font-size:12px;display:flex;align-items:center;gap:6px}
+  .col.a h3{color:var(--muted)} .col.b h3{color:var(--blue)}
+  .pill{font-size:10.5px;font-weight:700;border-radius:5px;padding:1px 6px}
+  .col.a .pill{background:#e6ebf2;color:var(--muted)} .col.b .pill{background:var(--blue);color:#fff}
+  .fld{margin:6px 0} .fld .lab{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:1px}
+  .col.b .lab{color:var(--blue)} .col.b .fld.judg .val{font-weight:600}
+  .dec{display:inline-block;font-size:11px;font-weight:700;border-radius:8px;padding:1px 8px;margin-top:2px}
+  .dec.a{background:#e7f6ef;color:var(--green)} .dec.r{background:#fdeaea;color:var(--red)} .dec.h{background:#fff3d9;color:var(--amber)}
+
+  /* 팀원 일간 · 컴팩트 카드 */
+  .daily .d-card{padding:14px 18px}
+  .daily .d-b{background:var(--b-bg);border:1px solid var(--b-line);border-radius:11px;padding:11px 13px;margin-top:8px;font-size:13px}
+  .daily .d-b .lab{font-size:11px;font-weight:700;color:var(--blue);display:block;margin-bottom:1px}
+  .daily .d-judg{font-weight:600}
+  .daily .axistag{font-size:11px;font-weight:700;color:var(--blue);background:var(--soft);border-radius:6px;padding:1px 8px}
+
+  /* ④ 판단(리포트 뷰) */
+  .verdict{margin:5px 18px 14px;background:var(--vbg);border:1px solid var(--vline);border-radius:12px;overflow:hidden}
+  .v-h{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--navy);color:#fff;font-size:12px;font-weight:700}
+  .v-h .step{font-size:10px;background:rgba(255,255,255,.18);border-radius:5px;padding:1px 7px}
+  .v-body{padding:11px 14px}
+  .v-top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:7px}
+  .verd{font-size:13px;font-weight:800;border-radius:8px;padding:3px 12px}
+  .verd.a{background:#e7f6ef;color:var(--green)} .verd.r{background:#fdeaea;color:var(--red)} .verd.h{background:#fff3d9;color:var(--amber)}
+  .prio{font-size:11.5px;font-weight:700;border-radius:8px;padding:3px 10px;background:var(--soft);color:var(--blue)}
+  .prio.low{background:#eef1f5;color:var(--muted)}
+  .v-comment{font-size:13px;color:var(--ink);margin:5px 0}
+  .v-report{font-size:12.5px;color:var(--ink);background:var(--card);border:1px dashed var(--vline);border-radius:8px;padding:8px 11px;margin-top:7px}
+  .v-report .lab{font-size:10.5px;font-weight:700;color:var(--blue);display:block;margin-bottom:2px}
+
+  /* 큐레이션 캡처 */
+  .capture{margin-top:9px;padding:9px 12px;background:var(--card);border:1px solid var(--line);border-radius:9px}
+  .capture .clab{font-size:10.5px;font-weight:700;color:var(--muted);display:block;margin-bottom:6px}
+  .cbtn{font:inherit;font-size:12px;font-weight:700;cursor:pointer;border-radius:7px;padding:4px 11px;border:1px solid var(--line);background:#fff;color:var(--muted);margin-right:6px}
+  .cbtn.sel[data-v="채택"]{background:#e7f6ef;color:var(--green);border-color:#b6e2cd}
+  .cbtn.sel[data-v="기각"]{background:#fdeaea;color:var(--red);border-color:#f3c4c4}
+  .cbtn.sel[data-v="보류"]{background:#fff3d9;color:var(--amber);border-color:#f0d68a}
+  .creason{font:inherit;font-size:12.5px;width:100%;margin-top:8px;padding:7px 9px;border:1px solid var(--line);border-radius:7px}
+  .csave{font:inherit;font-size:12px;font-weight:700;cursor:pointer;border-radius:7px;padding:5px 14px;border:none;background:var(--blue);color:#fff;margin-top:8px}
+  .csaved{font-size:11.5px;color:var(--green);margin-left:8px}
+
+  /* 거시 자료 */
+  .macro-form{display:grid;gap:8px}
+  .macro-form .row{display:flex;gap:8px;flex-wrap:wrap}
+  .macro-form input,.macro-form textarea,.macro-form select{font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+  .macro-form input.t{flex:1;min-width:220px} .macro-form select{min-width:120px}
+  .macro-form input.s{min-width:160px} .macro-form textarea{width:100%;height:52px;resize:vertical}
+  .mbtn2{font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;border-radius:8px;padding:7px 15px;border:none;background:var(--blue);color:#fff;width:fit-content}
+  .macro-item{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px}
+  .macro-item .mt{font-weight:700;color:var(--ink)}
+  .macro-item .mm{color:var(--muted);font-size:12px;margin-top:2px}
+  .macro-item .mx{float:right;color:var(--red);cursor:pointer;font-size:12px;font-weight:700}
+  .macro-item .mtag{font-size:10.5px;font-weight:700;color:var(--navy);background:var(--soft);border-radius:6px;padding:1px 7px;margin-right:6px}
+  .empty{color:var(--muted);font-size:12.5px;padding:6px 0}
+
+  .sec-title{font-size:14px;font-weight:800;color:var(--navy);margin:20px 0 6px;display:flex;align-items:center;gap:8px}
+  .sec-title .hint{font-size:11.5px;font-weight:600;color:var(--muted)}
+  .foot{margin-top:20px;font-size:12px;color:var(--muted)}
+  @media(max-width:900px){.app{flex-direction:column}.side{width:100%;height:auto;position:relative;flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--line)}.side .foot{display:none}.modenav{flex-direction:row}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><div class="logo">S1</div><div><div class="b-t1">마켓센싱 인텔리전스</div><div class="b-t2">MARKET SENSING</div></div></div>
+    <div class="modenav">
+      <button class="mbtn" data-mode="report"><span class="em">📊</span><span>리포트 · 월간<small>작성자 · 거시+큐레이션</small></span></button>
+      <button class="mbtn" data-mode="daily"><span class="em">📰</span><span>팀원 · 일간<small>내 그룹 기사</small></span></button>
+    </div>
+    <div class="side foot">지식계층 대시보드<br>시큐리티마케팅파트 지나</div>
+  </aside>
+
+  <main class="main">
+    <div class="h-eyebrow">2026-09 회차 · 지식 계층(KB) 적용</div>
+    <h1 id="viewTitle">리포트 · 월간</h1>
+    <div class="h-sub" id="viewSub">전체 집계 + 거시 자료 직접 정리 + 기사 큐레이션 → 월간 리포트</div>
+
+    <!-- 그룹바(팀원 일간에서만 표시) -->
+    <div class="groupbar" id="groupbar" hidden>
+      <span class="glab">내 그룹</span>
+      <button class="chip on" data-g="전체">전체</button>
+      <button class="chip" data-g="사업기획">사업기획</button>
+      <button class="chip" data-g="상품기획">상품기획</button>
+      <button class="chip" data-g="마케팅">마케팅</button>
+      <span class="count" id="dcount"></span>
+    </div>
+
+    <!-- 리포트 뷰 -->
+    <div id="reportView">
+      <div class="summary" id="summary"></div>
+
+      <div class="sec-title">거시 자료 <span class="hint">시장규모·정책·트렌드 등 — 리포트 작성자가 직접 정리(기사 아님)</span></div>
+      <div class="section" style="padding:14px 18px">
+        <div class="macro-form">
+          <input class="t" id="m-title" placeholder="제목 (예: 국내 물리보안 시장 2026 규모·성장률)">
+          <div class="row">
+            <select id="m-axis"><option>공통</option><option>사업기획</option><option>상품기획</option><option>마케팅</option></select>
+            <input class="s" id="m-src" placeholder="출처(선택)">
+          </div>
+          <textarea id="m-body" placeholder="내용 요약 — 수치·정책·시사점 등"></textarea>
+          <button class="mbtn2" id="m-add">＋ 거시 자료 추가</button>
+        </div>
+        <div id="macroList" style="margin-top:10px"></div>
+      </div>
+
+      <div class="sec-title">기사 신호 · 큐레이션 <span class="hint">전체 기사 + 판단 에이전트 종합 + 채택/기각</span></div>
+      <div id="reportCards"></div>
+    </div>
+
+    <!-- 팀원 일간 뷰 -->
+    <div id="dailyView" class="daily" hidden>
+      <div id="dailyCards"></div>
+    </div>
+
+    <div class="foot">마켓센싱 지식계층 대시보드 · 데모(예시 데이터) · A/B·판단은 시드 KB 기반 예시</div>
+  </main>
+</div>
+
+<script>
+const AXES=["사업기획","상품기획","마케팅"];
+
+/* ====== 데이터: 기사 · 관점 A/B (STEP2 산출물을 여기에) ====== */
+const ARTICLES = [
+  {
+    real:true, source:"헤럴드경제", url:"https://biz.heraldcorp.com/article/10742473",
+    title:"마포구, 1인 가구·스토킹 피해자에 주거 안심장비 지원",
+    summary:"마포구가 1인 가구와 스토킹 피해자에게 현관문 안전장치·스마트 초인종 등 주거 안심장비를 지원한다고 밝힘.",
+    keywords:["1인가구","스토킹","안심장비","지자체"],
+    persp:[
+      { axis:"마케팅", kbid:null, kbsrc:"—", rule:"관련 시드 KB 없음 — '1인가구·여성 안심 재포지셔닝' KB 신설 필요",
+        a:{ judgment:"1인가구 안심 수요 사례. 홈보안 마케팅 소재로 활용 가능.", dec:"채택", decc:"a", rationale:"지자체 안심장비 지원이 확대되고 있다.", boundary:"공공 사업이라 규모 제한적." },
+        b:{ judgment:"지자체가 1인가구 안심을 제도화 — '혼자여도 안심' 재포지셔닝 근거로 활용, 1인가구·여성 타깃.", dec:"채택", decc:"a", rationale:"구매 동인이 재산 보호→신체·정서 안전으로 확장(일반 판단). ※관련 KB 없어 우리 조직 고유 규칙 미반영 — 이 건이 새 KB 후보.", boundary:"공포·과장 톤 지양, '안심·일상' 프레임 유지." } },
+      { axis:"사업기획", kbid:"KB-260904-009", kbsrc:"남현옥(약한 매칭)", rule:"규제=강제 수요 (KB-009는 산업안전 맥락 — '공공발 안전 수요' 공통점만 부분 적용)",
+        a:{ judgment:"공공 복지 사업, 당사 직접 관련성 낮음.", dec:"보류", decc:"h", rationale:"지자체 예산 기반 지원.", boundary:"—" },
+        b:{ judgment:"지자체 복지연계 안심케어 B2G 채널 기회 — 안심장비+관제·출동 조달 패키지 검토.", dec:"신사업 검토", decc:"a", rationale:"공공이 초기 수요를 만드는 영역 + 당사 출동 인프라 인접. ※B2G 전용 KB 신설 필요.", boundary:"조달 단가·책임 범위 설계 관건." } }
+    ]
+  },
+  {
+    real:true, source:"디일렉/국민일보", url:"https://www.thelec.kr/news/articleView.html?idxno=54312",
+    title:"절도 표적 된 무인매장…에스원, AI 보안 계약 33% 급증",
+    summary:"무인매장 절도·기물파손 증가로 AI 영상분석 보안 수요가 늘며, 에스원의 관련 보안 계약이 전년 대비 33% 증가했다는 보도.",
+    keywords:["무인매장","AI보안","절도","에스원"],
+    persp:[
+      { axis:"사업기획", kbid:"KB-260904-002", kbsrc:"고다원", rule:"공급 뉴스 개수 ≠ 시장 크기 — 실제 '수요 사건'만",
+        a:{ judgment:"AI 보안 시장이 커지는 신호, 사업 기회.", dec:"게재", decc:"a", rationale:"AI 보안 도입 33% 급증.", boundary:"단일 지표." },
+        b:{ judgment:"에스원 자사 계약 33% 증가 = 점주가 실제 돈을 낸 '수요 사건' — 공급 서사가 아니라 실수요 확인. 무인매장 신규 세그먼트 유효.", dec:"게재", decc:"a", rationale:"KB-002 적용: 방아쇠가 절도(외생)이고 '자사 계약 증가'라 '사람이 돈 낸' 요건 충족 → 부풀린 공급 뉴스와 구분.", boundary:"프로모션·일시 계약이면 하향 → 갱신율·객단가 확인." } },
+      { axis:"마케팅", kbid:null, kbsrc:"—", rule:"관련 시드 KB 없음 — 무인매장 점주 세그먼트 KB 후보",
+        a:{ judgment:"무인점포 점주 대상 소구 강화 가능.", dec:"채택", decc:"a", rationale:"점주 보안 수요 증가.", boundary:"—" },
+        b:{ judgment:"무인매장 점주 겨냥 캠페인 기회 — '절도 손실회피' 소구 + 사후피해 보상 강조.", dec:"채택", decc:"a", rationale:"일반 판단(관련 KB 없음). 손실회피는 소상공인 구매 동인.", boundary:"시장 확대 ≠ 당사 점유, 전환·해지율 관리." } }
+    ]
+  },
+  {
+    real:true, source:"보안뉴스", url:"https://m.boannews.com/html/detail.html?idx=142976",
+    title:"[ISC West 2026] '보는 보안' 너머 '판단하는 보안'으로 — AI가 바꾼 물리보안",
+    summary:"글로벌 보안 전시 ISC West 2026에서 물리보안 흐름이 CCTV로 '보는' 단계에서 AI가 이상행동을 '판단·대응'하는 단계로 이동했다는 결산 보도.",
+    keywords:["ISC West","물리보안","판단하는보안","AI"],
+    persp:[
+      { axis:"상품기획", kbid:null, kbsrc:"—", rule:"관련 시드 KB 없음 — 상품 로드맵 KB 부재(신설 필요)",
+        a:{ judgment:"AI 물리보안 트렌드, 상품 기획 참고.", dec:"채택", decc:"a", rationale:"'판단하는 보안'이 부상.", boundary:"전시 트렌드가 국내 수요로 이어질지 미확인." },
+        b:{ judgment:"'보는 보안→판단하는 보안' 전환은 당사 관제·상품 로드맵의 방향성 — AI 1차 판별·자동 대응 우선순위 상향 검토.", dec:"채택", decc:"a", rationale:"일반 판단(관련 KB 없음). 상품기획 시드가 없어 우리 조직 고유 기준 미반영 — 상품 로드맵 KB 후보.", boundary:"국내 규제·오탐률·현장 수용도 검증 필요." } }
+    ]
+  }
+];
+
+/* ====== 종합 규칙 엔진 (④ 판단) ====== */
+function catOf(d){ if(!d)return 'hold'; if(d.includes('미게재')||d.includes('기각'))return 'noise'; if(d.includes('조건부'))return 'conditional'; if(d.includes('보류'))return 'hold'; return 'support'; }
+function confOf(p){ const d=p.b.dec||''; if(d.includes('신사업'))return '높음'; if(catOf(d)==='noise')return '높음'; return '중간'; }
+function synthesize(persp){
+  const items=persp.map(p=>({axis:p.axis,cat:catOf(p.b.dec),conf:confOf(p),judg:p.b.judgment}));
+  const sup=items.filter(i=>i.cat==='support'),cond=items.filter(i=>i.cat==='conditional'),noise=items.filter(i=>i.cat==='noise');
+  const conflict=sup.length>0&&noise.length>0; let final,vc;
+  if(sup.length){final='게재';vc='a';} else if(cond.length){final='조건부 게재';vc='h';} else if(noise.length){final='미게재';vc='r';} else {final='보류';vc='h';}
+  let prio; if(final==='미게재'||final==='보류')prio='우선순위 낮음'; else if(sup.length>=2)prio='우선순위 높음'; else if(sup.some(i=>i.conf==='높음'))prio='우선순위 높음'; else prio='우선순위 중';
+  const win=sup.length?sup:(cond.length?cond:(noise.length?noise:items)); const top=win.slice().sort((a,b)=>(b.conf==='높음')-(a.conf==='높음'))[0];
+  let comment,trace;
+  if(conflict){comment=`관점 충돌 — ${sup.map(i=>i.axis).join('·')}은 게재, ${noise.map(i=>i.axis).join('·')}은 노이즈. 놓침 비용 고려해 게재하되 이견 병기.`;trace=`지지 ${sup.length} vs 노이즈 ${noise.length} → 충돌 → 기회 관점 우선+이견 병기`;}
+  else if(sup.length>=2){comment=`${sup.map(i=>i.axis).join('·')} 관점 수렴 — 확신도 상향.`;trace=`지지 ${sup.length}개 수렴 → 게재·높음`;}
+  else if(final==='조건부 게재'){comment=`현재는 노이즈이나 경계조건 충족 시 게재로 전환.`;trace=`조건부 관점만 → 조건부 게재`;}
+  else if(final==='미게재'){comment=`모든 관점이 노이즈 → 리포트 제외.`;trace=`지지 0 · 노이즈 ${noise.length} → 미게재`;}
+  else{comment=`${top?top.axis:''} 단일 관점 유효.`;trace=`단일 지지(확신도 ${top?top.conf:'중간'}) → 게재`;}
+  let report=''; if(final!=='미게재'){report=top?top.judg:''; if(conflict&&noise.length)report+=` (이견: ${noise[0].axis} — 노이즈)`;}
+  return {final,vc,prio,comment,trace,report,conflict};
+}
+
+/* ====== 렌더 유틸 ====== */
+function esc(s){return (s||'').replace(/</g,'&lt;');}
+function fld(lab,val){return `<div class="fld ${lab==='판단'?'judg':''}"><span class="lab">${lab}</span><span class="val">${val}</span></div>`;}
+function dec(d,c){return d?`<span class="dec ${c||'h'}">${d}</span>`:'';}
+function badge(d){return d.real?`<span class="rb real">실제</span>`:`<span class="rb ex">예시</span>`;}
+function srcHTML(d){return d.real&&d.url?`<span class="src">· 출처 <a href="${d.url}" target="_blank" rel="noopener">${d.source}</a></span>`:'';}
+
+/* ====== 리포트 뷰 ====== */
+function perspFull(p){
+  const kbchip=p.kbid?`주입 근거 ${p.kbid} · ${p.kbsrc}`:`관련 시드 KB 없음`;
+  return `<div class="persp"><div class="axis"><span class="dot"></span>${p.axis} 관점</div>
+    <div class="kb ${p.kbid?'':'none'}"><span class="kid">${kbchip}</span> — <span class="rule">${p.rule}</span></div>
+    <div class="ab"><div class="col a"><h3><span class="pill">A</span> KB 없이</h3>${fld('판단',p.a.judgment)}${dec(p.a.dec,p.a.decc)}${fld('근거',p.a.rationale)}${fld('경계조건',p.a.boundary)}</div>
+    <div class="col b"><h3><span class="pill">B</span> KB 주입</h3>${fld('판단',p.b.judgment)}${dec(p.b.dec,p.b.decc)}${fld('근거',p.b.rationale)}${fld('경계조건',p.b.boundary)}</div></div></div>`;
+}
+function verdictHTML(v){
+  const pc=v.prio.includes('낮음')?'prio low':'prio';
+  const cf=v.conflict?`<span class="prio" style="background:#fdeaea;color:var(--red)">관점 충돌</span>`:'';
+  const rp=v.report?`<div class="v-report"><span class="lab">월간 리포트 반영 문장</span>${v.report}</div>`:`<div class="v-report" style="color:var(--muted)"><span class="lab">월간 리포트 반영</span>제외 (미게재)</div>`;
+  return `<div class="verdict"><div class="v-h">④ 판단 에이전트 · 종합 <span class="step">관점 통합 → 규칙 판정</span></div>
+    <div class="v-body"><div class="v-top"><span class="verd ${v.vc}">${v.final}</span><span class="${pc}">${v.prio}</span>${cf}</div>
+    <div class="v-comment">${v.comment}</div><div style="font-size:11px;color:var(--muted);margin:2px 0 4px">⚙ ${v.trace}</div>${rp}</div></div>`;
+}
+function keyOf(d){return 'a_'+encodeURIComponent(d.title).replace(/%/g,'').slice(0,40);}
+function captureHTML(d){const k=keyOf(d),s=getDec(k),sel=v=>s&&s.verdict===v?'sel':'';
+  return `<div class="capture" data-key="${k}" data-title="${esc(d.title)}"><span class="clab">큐레이션 — 팀 확정(채택/기각) → ⑤ KB로 축적</span>
+    <button class="cbtn ${sel('채택')}" data-v="채택">채택</button><button class="cbtn ${sel('기각')}" data-v="기각">기각</button><button class="cbtn ${sel('보류')}" data-v="보류">보류</button>
+    <input class="creason" placeholder="근거 한 줄 (이게 KB가 됩니다)" value="${s?esc(s.reason):''}">
+    <div><button class="csave">저장</button><span class="csaved" ${s?'':'hidden'}>✓ 저장됨</span></div></div>`;
+}
+function renderReport(){
+  let pub=0,cond=0,rej=0,hi=0;
+  ARTICLES.forEach(d=>{const v=synthesize(d.persp); if(v.final.includes('미게재'))rej++; else if(v.final.includes('조건부'))cond++; else pub++; if(v.prio.includes('높음'))hi++;});
+  document.getElementById('summary').innerHTML=`
+    <div class="kpi"><div class="n">${ARTICLES.length}</div><div class="l">이번 회차 기사</div></div>
+    <div class="kpi"><div class="n">${pub}</div><div class="l">게재</div></div>
+    <div class="kpi"><div class="n">${cond}</div><div class="l">조건부</div></div>
+    <div class="kpi"><div class="n">${rej}</div><div class="l">미게재</div></div>
+    <div class="kpi hi"><div class="n">${hi}</div><div class="l">우선순위 높음</div></div>`;
+  document.getElementById('reportCards').innerHTML=ARTICLES.map(d=>`
+    <div class="section"><div class="art"><div class="k">${badge(d)} 기사 ${srcHTML(d)}</div>
+      <h2>${d.title}</h2><p>${d.summary}</p><div class="tags">${d.keywords.map(k=>`<span class="tag">#${k}</span>`).join('')}</div></div>
+      ${d.persp.map(perspFull).join('')}${verdictHTML(synthesize(d.persp))}
+      <div style="padding:0 18px 14px">${captureHTML(d)}</div></div>`).join('');
+  renderMacro();
+}
+
+/* ====== 팀원 일간 뷰 (그룹별, 기사 위주) ====== */
+function renderDaily(group){
+  const host=document.getElementById('dailyCards');
+  const rows=[];
+  ARTICLES.forEach(d=>{
+    const ps=d.persp.filter(p=>group==='전체'||p.axis===group);
+    ps.forEach(p=>rows.push({d,p}));
+  });
+  document.getElementById('dcount').textContent=`${rows.length}건`;
+  if(!rows.length){host.innerHTML='<div class="section" style="padding:18px"><div class="empty">이 그룹에 해당하는 기사가 없습니다.</div></div>';return;}
+  host.innerHTML=rows.map(({d,p})=>`
+    <div class="section"><div class="art d-card"><div class="k">${badge(d)} <span class="axistag">${p.axis}</span> ${srcHTML(d)}</div>
+      <h2>${d.title}</h2><p>${d.summary}</p>
+      <div class="d-b"><span class="lab">우리 관점(${p.axis}) 해석</span>
+        <div class="d-judg">${p.b.judgment}</div>
+        ${dec(p.b.dec,p.b.decc)}
+        <div style="font-size:12.5px;color:var(--muted);margin-top:5px">${p.b.rationale}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px"><b>경계</b> ${p.b.boundary}</div>
+      </div></div></div>`).join('');
+}
+
+/* ====== 거시 자료 (리포트 뷰) ====== */
+const MK='ms_macro';
+function macro(){try{return JSON.parse(localStorage.getItem(MK)||'[]');}catch(e){return [];}}
+function saveMacro(a){try{localStorage.setItem(MK,JSON.stringify(a));}catch(e){}}
+function renderMacro(){
+  const a=macro(),host=document.getElementById('macroList');
+  host.innerHTML=a.length?a.map((m,i)=>`<div class="macro-item"><span class="mx" data-i="${i}">삭제</span>
+    <div class="mt"><span class="mtag">${m.axis}</span>${esc(m.title)}</div>
+    <div class="mm">${esc(m.body)}${m.src?' · '+esc(m.src):''}</div></div>`).join(''):'<div class="empty">아직 없음 — 위에서 거시 자료를 추가하세요.</div>';
+}
+
+/* ====== 큐레이션 저장(⑤) ====== */
+const LS='ms_kb_decisions';
+function allDec(){try{return JSON.parse(localStorage.getItem(LS)||'{}');}catch(e){return {};}}
+function getDec(k){return allDec()[k];}
+function setDec(k,o){try{const a=allDec();a[k]=o;localStorage.setItem(LS,JSON.stringify(a));}catch(e){}}
+
+/* ====== 모드 전환 ====== */
+const MODEK='ms_mode',GROUPK='ms_group';
+function setMode(m){
+  try{localStorage.setItem(MODEK,m);}catch(e){}
+  document.querySelectorAll('.mbtn').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
+  const daily=m==='daily';
+  document.getElementById('dailyView').hidden=!daily;
+  document.getElementById('reportView').hidden=daily;
+  document.getElementById('groupbar').hidden=!daily;
+  document.getElementById('viewTitle').textContent=daily?'팀원 · 일간':'리포트 · 월간';
+  document.getElementById('viewSub').textContent=daily?'내 그룹 선택 → 그 그룹 기사·해석만 (기사 위주, 매일)':'전체 집계 + 거시 자료 직접 정리 + 기사 큐레이션 → 월간 리포트';
+  if(daily){ let g='전체'; try{g=localStorage.getItem(GROUPK)||'전체';}catch(e){}
+    document.querySelectorAll('#groupbar .chip').forEach(c=>c.classList.toggle('on',c.dataset.g===g)); renderDaily(g); }
+  else renderReport();
+}
+
+/* 이벤트 */
+document.querySelector('.modenav').addEventListener('click',e=>{const b=e.target.closest('.mbtn');if(b)setMode(b.dataset.mode);});
+document.getElementById('groupbar').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;
+  document.querySelectorAll('#groupbar .chip').forEach(c=>c.classList.remove('on'));b.classList.add('on');
+  try{localStorage.setItem(GROUPK,b.dataset.g);}catch(e){} renderDaily(b.dataset.g);});
+document.getElementById('reportView').addEventListener('click',e=>{
+  const cap=e.target.closest('.capture');
+  if(cap){ const vb=e.target.closest('.cbtn');
+    if(vb){cap.querySelectorAll('.cbtn').forEach(x=>x.classList.remove('sel'));vb.classList.add('sel');return;}
+    if(e.target.closest('.csave')){const sel=cap.querySelector('.cbtn.sel');setDec(cap.dataset.key,{title:cap.dataset.title,verdict:sel?sel.dataset.v:'보류',reason:cap.querySelector('.creason').value.trim(),ts:Date.now()});cap.querySelector('.csaved').hidden=false;} return; }
+  const mx=e.target.closest('.mx'); if(mx){const a=macro();a.splice(+mx.dataset.i,1);saveMacro(a);renderMacro();}
+});
+document.getElementById('m-add').addEventListener('click',()=>{
+  const title=document.getElementById('m-title').value.trim(); if(!title){alert('제목을 입력하세요.');return;}
+  const a=macro(); a.push({title,axis:document.getElementById('m-axis').value,body:document.getElementById('m-body').value.trim(),src:document.getElementById('m-src').value.trim(),ts:Date.now()});
+  saveMacro(a); ['m-title','m-body','m-src'].forEach(id=>document.getElementById(id).value=''); renderMacro();
+});
+
+/* 시작 */
+let startMode='report'; try{startMode=localStorage.getItem(MODEK)||'report';}catch(e){}
+setMode(startMode);
+</script>
+</body>
+</html>
