@@ -190,7 +190,7 @@
         </div>
         <div id="macroList" style="margin-top:10px"></div>
       </div>
-      <div class="sec-title">기사 신호 · 큐레이션 <span class="hint">전체 기사 + 판단 에이전트 종합 + 채택/기각</span></div>
+      <div class="sec-title">월말 보고서 초안 <span class="hint">데일리에서 채택된 신호 모음 + 판단 에이전트 종합 · 리포트 반영 문장</span></div>
       <div id="reportCards"></div>
     </div>
     <div id="calendarView" hidden></div>
@@ -204,11 +204,11 @@
 const AXES=["사업기획","상품기획","마케팅"];
 /* 사이드바 메뉴 = 개발자 대시보드 구조 흡수 (view=home|topic|daily|report|calendar|status) */
 const NAV=[
- [null,[["🏠 홈 브리핑","home",null]]],
- ["동향",[["업계 동향","topic","업계 동향"],["기술·트렌드","topic","기술·트렌드"],["사회·안전","topic","사회·안전"]]],
- ["경쟁 인텔리전스",[["경쟁사","topic","경쟁사"],["글로벌 동향","topic","글로벌 동향"],["M&A·신사업","topic","M&A·신사업"]]],
- ["시장·정책",[["법령·규제","topic","법령·규제"],["경제지표","topic","경제지표"]]],
- ["보고서",[["📰 데일리 (팀원)","daily",null],["📊 월간 리포트","report",null]]],
+ ["📰 데일리 (팀원)",[["전체 신호","daily",null]]],
+ ["└ 동향",[["업계 동향","daily","업계 동향"],["기술·트렌드","daily","기술·트렌드"],["사회·안전","daily","사회·안전"]]],
+ ["└ 경쟁 인텔리전스",[["경쟁사","daily","경쟁사"],["글로벌 동향","daily","글로벌 동향"],["M&A·신사업","daily","M&A·신사업"]]],
+ ["└ 시장·정책",[["법령·규제","daily","법령·규제"],["경제지표","daily","경제지표"]]],
+ ["📊 월간 리포트",[["월말 보고서 (채택 모음)","report",null]]],
  ["운영",[["수집 현황","status",null],["🗓️ 수집 캘린더","calendar",null]]],
 ];
 
@@ -310,17 +310,23 @@ function renderTopic(cat){
     <div class="note">토픽 분류는 개발자 대시보드 구조(업계·경쟁사·글로벌·M&A·법령·경제지표)를 흡수한 것입니다. 기사에 <code>category</code>를 지정하면 해당 메뉴로 자동 분류됩니다.</div>`;
 }
 
-/* ====== 데일리(팀원, 그룹별) ====== */
-function renderDaily(group){
-  const rows=[]; ARTICLES.forEach(d=>d.persp.filter(p=>group==='전체'||p.axis===group).forEach(p=>rows.push({d,p})));
-  document.getElementById('dcount').textContent=`${rows.length}건`;
-  document.getElementById('dailyView').innerHTML = rows.length? rows.map(({d,p})=>`
-    <div class="section"><div class="art nb"><div class="k">${badge(d)} <span class="axistag">${p.axis}</span> <span class="cattag">${d.category}</span> ${srcHTML(d)}</div>
+/* ====== 데일리(팀원) — 토픽(카테고리)+그룹(관점) ====== */
+let curCat=null;
+function renderDaily(group,category){
+  curCat = (category===undefined)?curCat:category;
+  const arts = ARTICLES.filter(d=>!curCat || d.category===curCat);
+  const rows=[]; arts.forEach(d=>d.persp.filter(p=>group==='전체'||p.axis===group).forEach(p=>rows.push({d,p})));
+  document.getElementById('dcount').textContent=`${rows.length}건${curCat?' · '+curCat:''}`;
+  document.getElementById('dailyView').innerHTML = rows.length? rows.map(({d,p})=>{
+    const s=getDec(keyOf(d));
+    return `<div class="section"><div class="art nb"><div class="k">${badge(d)} <span class="axistag">${p.axis}</span> <span class="cattag">${d.category}</span> ${srcHTML(d)}${s?` <span class="dec ${s.verdict==='채택'?'a':s.verdict==='기각'?'r':'h'}">${s.verdict}</span>`:''}</div>
       <h2>${d.title}</h2><p>${d.summary}</p>
       <div class="d-b"><span class="lab">우리 관점(${p.axis}) 해석</span><div class="d-judg">${p.b.judgment}</div>${dec(p.b.dec,p.b.decc)}
         <div style="font-size:12.5px;color:var(--muted);margin-top:5px">${p.b.rationale}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:3px"><b>경계</b> ${p.b.boundary}</div></div></div></div>`).join('')
-    : '<div class="section"><div class="empty" style="padding:18px">이 그룹에 해당하는 기사가 없습니다.</div></div>';
+        <div style="font-size:12px;color:var(--muted);margin-top:3px"><b>경계</b> ${p.b.boundary}</div></div>
+      <div style="margin-top:2px">${captureHTML(d)}</div></div></div>`;
+  }).join('')
+    : `<div class="section"><div class="empty" style="padding:18px">${curCat?`'${curCat}' 토픽에 해당하는 기사가 아직 없습니다.`:'해당 그룹에 기사가 없습니다.'}</div></div>`;
 }
 
 /* ====== 월간 리포트 ====== */
@@ -347,19 +353,26 @@ function captureHTML(d){const k=keyOf(d),s=getDec(k),sel=v=>s&&s.verdict===v?'se
     <div><button class="csave">저장</button><span class="csaved" ${s?'':'hidden'}>✓ 저장됨</span></div></div>`;
 }
 function renderReport(){
-  let pub=0,cond=0,rej=0,hi=0;
-  ARTICLES.forEach(d=>{const v=synthesize(d.persp); if(v.final.includes('미게재'))rej++; else if(v.final.includes('조건부'))cond++; else pub++; if(v.prio.includes('높음'))hi++;});
+  // 데일리에서 쌓인 것 중 '게재 후보'(판단=게재/조건부) 를 월말 보고서 풀로, 그 중 사람이 '채택'한 것을 최종 반영
+  const pool=ARTICLES.map(d=>({d,v:synthesize(d.persp),dec:getDec(keyOf(d))})).filter(x=>!x.v.final.includes('미게재'));
+  const adopted=pool.filter(x=>x.dec&&x.dec.verdict==='채택');
+  const rej=ARTICLES.length-pool.length;
   document.getElementById('summary').innerHTML=`
-    <div class="kpi"><div class="n">${ARTICLES.length}</div><div class="l">이번 회차 기사</div></div>
-    <div class="kpi"><div class="n">${pub}</div><div class="l">게재</div></div>
-    <div class="kpi"><div class="n">${cond}</div><div class="l">조건부</div></div>
-    <div class="kpi"><div class="n">${rej}</div><div class="l">미게재</div></div>
-    <div class="kpi hi"><div class="n">${hi}</div><div class="l">우선순위 높음</div></div>`;
-  document.getElementById('reportCards').innerHTML=ARTICLES.map(d=>`
-    <div class="section"><div class="art"><div class="k">${badge(d)} <span class="cattag">${d.category}</span> 기사 ${srcHTML(d)}</div>
-      <h2>${d.title}</h2><p>${d.summary}</p><div class="tags">${d.keywords.map(k=>`<span class="tag">#${k}</span>`).join('')}</div></div>
-      ${d.persp.map(perspFull).join('')}${verdictHTML(synthesize(d.persp))}
-      <div style="padding:0 18px 14px">${captureHTML(d)}</div></div>`).join('');
+    <div class="kpi"><div class="n">${ARTICLES.length}</div><div class="l">이번 회차 접수</div></div>
+    <div class="kpi"><div class="n">${pool.length}</div><div class="l">게재 후보(판단)</div></div>
+    <div class="kpi hi"><div class="n">${adopted.length}</div><div class="l">채택(최종 반영)</div></div>
+    <div class="kpi"><div class="n">${rej}</div><div class="l">미게재(기각)</div></div>`;
+  const finalList = adopted.length?adopted:pool; // 채택이 없으면 후보를 초안에 노출
+  const cards = finalList.map(({d,v,dec})=>`
+    <div class="section"><div class="art nb"><div class="k">${badge(d)} <span class="cattag">${d.category}</span> ${srcHTML(d)}
+      <span class="verd ${v.vc}" style="font-size:11px">${v.final}</span><span class="prio ${v.prio.includes('낮음')?'low':''}">${v.prio}</span>${dec?` <span class="dec ${dec.verdict==='채택'?'a':dec.verdict==='기각'?'r':'h'}">${dec.verdict}</span>`:''}</div>
+      <h2>${d.title}</h2>
+      <div class="v-report" style="margin:6px 0"><span class="lab">리포트 반영 문장</span>${v.report||'—'}</div>
+      <div style="font-size:12px;color:var(--muted)">관점: ${d.persp.map(p=>p.axis).join(' · ')} · 근거 종합: ${v.comment}</div>
+      <div style="margin-top:6px">${captureHTML(d)}</div></div></div>`).join('');
+  document.getElementById('reportCards').innerHTML =
+    `<div class="note">데일리에서 <b>채택</b>한 신호가 여기 모여 <b>월말 보고서 초안</b>이 됩니다. 아래 목록의 '채택'을 눌러 최종 반영을 확정하세요. (채택이 없으면 판단 에이전트의 게재 후보를 초안으로 노출)</div>`
+    + (finalList.length?cards:'<div class="section"><div class="empty" style="padding:18px">게재 후보가 없습니다.</div></div>');
   renderMacro();
 }
 
@@ -436,24 +449,32 @@ function setView(view,cat){
   document.querySelectorAll('.nvitem').forEach(n=>n.classList.toggle('on', n.dataset.view===view && (n.dataset.cat||null)===(cat||null)));
   show(view);
   document.getElementById('groupbar').hidden = (view!=='daily');
-  const meta={home:['홈 브리핑','이번 회차 요약 + 우선순위 높은 신호'],
-    daily:['데일리 (팀원)','내 그룹 선택 → 그 그룹 기사·해석만 (기사 위주, 매일)'],
-    report:['월간 리포트','전체 집계 + 거시 자료 직접 정리 + 기사 큐레이션 → 월간 리포트'],
+  const dailyTitle = cat?`데일리 · ${cat}`:'데일리 (팀원) · 전체 신호';
+  const meta={
+    daily:[dailyTitle,'내 그룹을 고르고, 이번 회차 신호를 본다 — 채택/기각으로 월간 리포트에 쌓인다'],
+    report:['월간 리포트','데일리에서 채택된 신호를 모아 월말 보고서 + 거시 자료 정리'],
     calendar:['수집 캘린더','무엇을 언제 수집하나 — 상시 + 월별 정기'],
-    status:['수집 현황','소스 마스터·수집 경로·회차 접수 현황'],
-    topic:[cat||'토픽','해당 분류의 기사 신호 + 종합 판단']};
-  document.getElementById('viewTitle').textContent=meta[view][0];
-  document.getElementById('viewSub').textContent=meta[view][1];
-  if(view==='home')renderHome();
-  else if(view==='topic')renderTopic(cat);
-  else if(view==='daily'){let g='전체';try{g=localStorage.getItem('ms_group')||'전체';}catch(e){}document.querySelectorAll('#groupbar .chip').forEach(c=>c.classList.toggle('on',c.dataset.g===g));renderDaily(g);}
+    status:['수집 현황','소스 마스터·수집 경로·회차 접수 현황']};
+  const m=meta[view]||['',''];
+  document.getElementById('viewTitle').textContent=m[0];
+  document.getElementById('viewSub').textContent=m[1];
+  if(view==='daily'){let g='전체';try{g=localStorage.getItem('ms_group')||'전체';}catch(e){}document.querySelectorAll('#groupbar .chip').forEach(c=>c.classList.toggle('on',c.dataset.g===g));renderDaily(g,cat||null);}
   else if(view==='report')renderReport();
   else if(view==='calendar')renderCalendar();
   else if(view==='status')renderStatus();
 }
+/* 데일리 채택/기각 캡처 */
+document.getElementById('dailyView').addEventListener('click',e=>{
+  const cap=e.target.closest('.capture'); if(!cap)return;
+  const vb=e.target.closest('.cbtn');
+  if(vb){cap.querySelectorAll('.cbtn').forEach(x=>x.classList.remove('sel'));vb.classList.add('sel');return;}
+  if(e.target.closest('.csave')){const sel=cap.querySelector('.cbtn.sel');
+    setDec(cap.dataset.key,{title:cap.dataset.title,verdict:sel?sel.dataset.v:'보류',reason:cap.querySelector('.creason').value.trim(),ts:Date.now()});
+    let g='전체';try{g=localStorage.getItem('ms_group')||'전체';}catch(e){} renderDaily(g,curCat);}
+});
 
 /* 네비 렌더 + 카운트 */
-function navCount(view,cat){ if(view==='topic')return ARTICLES.filter(d=>d.category===cat).length; if(view==='home')return ARTICLES.length; return null; }
+function navCount(view,cat){ if(view==='daily')return cat?ARTICLES.filter(d=>d.category===cat).length:ARTICLES.length; if(view==='report')return ARTICLES.map(d=>synthesize(d.persp)).filter(v=>!v.final.includes('미게재')).length; return null; }
 document.getElementById('nav').innerHTML=NAV.map(([g,items])=>(g?`<div class="grp">${g}</div>`:'')+items.map(([name,view,cat])=>{
   const c=navCount(view,cat); return `<div class="nvitem" data-view="${view}" ${cat?`data-cat="${cat}"`:''}><span>${name}</span>${c!=null?`<span class="cnt">${c}</span>`:''}</div>`;
 }).join('')).join('');
@@ -470,7 +491,7 @@ document.getElementById('m-add').addEventListener('click',()=>{const title=docum
   const a=macro();a.push({title,axis:document.getElementById('m-axis').value,body:document.getElementById('m-body').value.trim(),src:document.getElementById('m-src').value.trim(),ts:Date.now()});
   saveMacro(a);['m-title','m-body','m-src'].forEach(id=>document.getElementById(id).value='');renderMacro();});
 
-setView('home',null);
+setView('daily',null);
 </script>
 </body>
 </html>
